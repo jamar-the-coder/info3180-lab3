@@ -5,9 +5,12 @@ Werkzeug Documentation:  http://werkzeug.pocoo.org/documentation/
 This file creates your application.
 """
 
+from flask import request
+from .forms import ContactForm
 from app import app
 from flask import render_template, request, redirect, url_for, flash
-
+from app import mail
+from flask_mail import Message
 
 ###
 # Routing for your application.
@@ -18,17 +21,31 @@ def home():
     """Render website's home page."""
     return render_template('home.html')
 
-
 @app.route('/about/')
 def about():
     """Render the website's about page."""
     return render_template('about.html', name="Mary Jane")
-
-
+    
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    form = ContactForm()
+    if request.method == 'POST':
+        if form.validate_on_submit() == False:
+            flash('Error. Field data incorrect.')
+            # return render_template('contact.html', form=form)
+            return redirect(url_for('contact'))
+        else:
+            msg = Message(request.form['subject'], sender=("Mailtrap Support", "dc7ea0340c-a39b90@inbox.mailtrap.io"), recipients=[request.form['email']])
+            msg.body = request.form['message']
+            mail.send(msg)
+            flash('Your email has been sent successfully sent to the site owners.')
+            return redirect(url_for('home'))
+    elif request.method == 'GET':
+        return render_template('contact.html', form=form)
+              
 ###
 # The functions below should be applicable to all Flask apps.
 ###
-
 
 # Flash errors from the form if validation fails
 def flash_errors(form):
@@ -46,7 +63,6 @@ def send_text_file(file_name):
     file_dot_text = file_name + '.txt'
     return app.send_static_file(file_dot_text)
 
-
 @app.after_request
 def add_header(response):
     """
@@ -58,12 +74,10 @@ def add_header(response):
     response.headers['Cache-Control'] = 'public, max-age=0'
     return response
 
-
 @app.errorhandler(404)
 def page_not_found(error):
     """Custom 404 page."""
     return render_template('404.html'), 404
-
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port="8080")
